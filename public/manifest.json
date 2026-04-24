@@ -1,0 +1,10 @@
+{
+  "short_name": "Seekers Offline",
+  "name": "Berlin is for Seekers — Printed-Map Companion",
+  "description": "Index of Scheunenviertel stations. Scan the QR code at each stop to unlock its audio story and photos.",
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#bc001f",
+  "background_color": "#f9f9f9",
+  "icons": []
+}

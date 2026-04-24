@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# macOS
+.DS_Store
+
+# Design exports (Stitch, if any end up here)
+stitch_*/
+
+# Lock file (kept out to match sibling repo convention)
+package-lock.json
+
+# Build
+build/
+dist/
+
+# Env
+.env
+.env.local
+
+# Editor
+.vscode/
+.idea/
