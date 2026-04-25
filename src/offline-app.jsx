@@ -635,15 +635,13 @@ const QRScannerModal = ({ expectedStationName, onClose, onDecoded, error }) => {
 };
 
 // --- List Row (Stitch "seeker list" adapted to inline styles) ---
-// Left block (~half the row width): the three station-color circles enlarged
-// as a backdrop, with the station logo (public/stations/<folder>/logo/logo.png)
-// overlaid on top. Right block: eyebrow + Found/Locked pill + chevron.
+// Left column: the original small three-circle station marker (black until
+// found, then fills in with this station's color permutation).
+// Right grey card: eyebrow + station logo (replaces the written name) +
+// Found/Locked pill + chevron. If the logo file isn't present yet, the logo
+// component falls back to the station name text.
 const StationRow = ({ station, isFound, onOpen }) => {
   const style = CATEGORY_STYLE[station.category] || CATEGORY_STYLE.historic;
-  const stationColors = STATION_COLOR_ORDER[station.id] || LOGO_COLOR_ORDER;
-  const backdropColors = isFound
-    ? stationColors
-    : [COLORS.found, COLORS.found, COLORS.found];
 
   return (
     <button
@@ -663,67 +661,20 @@ const StationRow = ({ station, isFound, onOpen }) => {
         cursor: 'pointer',
         textAlign: 'left',
         font: 'inherit',
-        minHeight: '96px',
       }}
     >
-      {/* Left ~half — enlarged circles as a backdrop, station logo on top.
-          Circles stay black until the station is found, then fill in with
-          its color permutation (discovery reveals identity). */}
+      {/* Left column — small three-circle station marker */}
       <div style={{
-        flex: '0 0 50%',
-        position: 'relative',
+        flexShrink: 0,
+        width: '88px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '10px',
-        minWidth: 0,
       }}>
-        {/* Backdrop circles (absolutely positioned, centered, behind logo) */}
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          pointerEvents: 'none',
-        }}>
-          <CircleTrio colors={backdropColors} size={42} gap={10} />
-        </div>
-        {/* Logo (or text fallback) layered on top */}
-        <div style={{
-          position: 'relative',
-          zIndex: 1,
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          <StationLogo
-            station={station}
-            imgStyle={{
-              maxWidth: '100%',
-              maxHeight: '64px',
-              objectFit: 'contain',
-              display: 'block',
-            }}
-            fallbackStyle={{
-              fontFamily: "'Space Grotesk', sans-serif",
-              fontWeight: 700,
-              fontSize: '14px',
-              lineHeight: 1.05,
-              textTransform: 'uppercase',
-              letterSpacing: '-0.01em',
-              color: COLORS.onSurface,
-              textAlign: 'center',
-              padding: '0 6px',
-              wordBreak: 'break-word',
-            }}
-          />
-        </div>
+        <StationMarker stationId={station.id} isFound={isFound} size={16} gap={6} />
       </div>
 
-      {/* Right content — grey card with eyebrow + found/locked pill + chevron */}
+      {/* Right content — grey card around eyebrow + logo + pill + chevron */}
       <div style={{
         flex: 1,
         padding: '18px 18px 18px 20px',
@@ -735,10 +686,37 @@ const StationRow = ({ station, isFound, onOpen }) => {
         backgroundColor: COLORS.surfaceLow,
       }}>
         <div style={{ minWidth: 0 }}>
-          <Eyebrow color={style.color} size={10} spacing="0.22em" style={{ marginBottom: '8px' }}>
+          <Eyebrow color={style.color} size={10} spacing="0.22em" style={{ marginBottom: '6px' }}>
             {`Station ${String(station.id).padStart(2, '0')}`}
           </Eyebrow>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {/* Station logo (replaces the written station name).
+              Falls back to the text title if logo.png is missing. */}
+          <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+            <StationLogo
+              station={station}
+              imgStyle={{
+                maxHeight: '48px',
+                maxWidth: '100%',
+                objectFit: 'contain',
+                display: 'block',
+              }}
+              fallbackStyle={{
+                fontFamily: "'Space Grotesk', sans-serif",
+                fontWeight: 700,
+                fontSize: '18px',
+                lineHeight: 1.1,
+                textTransform: 'uppercase',
+                letterSpacing: '-0.01em',
+                color: COLORS.onSurface,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                display: 'inline-block',
+                maxWidth: '100%',
+              }}
+            />
+          </div>
+          <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
             {isFound ? (
               <span style={{
                 display: 'inline-block',
