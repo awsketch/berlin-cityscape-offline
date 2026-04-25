@@ -13,7 +13,7 @@ const COLORS = {
   primary: '#ff3333',        // Bauhaus Red — historic / heritage
   primaryDeep: '#d92626',
   secondary: '#3399cc',      // Bauhaus Blue — modern architecture / utility
-  tertiary: '#ffff00',       // Bauhaus Yellow — secret spots / guidance
+  tertiary: '#FDE74C',       // Bauhaus Yellow — secret spots / guidance
   found: '#1a1c1c',          // Stark black for "found" state
 };
 
@@ -318,27 +318,276 @@ const Eyebrow = ({ children, color = COLORS.onSurface, size = 10, spacing = '0.2
   </span>
 );
 
-// --- Audio Player (same styling as the map app) ---
-const AudioPlayer = ({ audioUrl, treasureName }) => (
-  <div style={{
-    marginTop: '20px',
-    padding: '14px',
-    backgroundColor: COLORS.surfaceLow,
-  }}>
-    <Eyebrow spacing="0.18em" style={{ marginBottom: '8px' }}>
-      Talk to me! · {treasureName}
-    </Eyebrow>
-    <audio
-      controls
-      preload="none"
-      style={{ width: '100%', marginTop: '4px' }}
-      controlsList="nodownload"
-    >
-      <source src={audioUrl} type="audio/mpeg" />
-      Your browser does not support the audio element.
-    </audio>
-  </div>
-);
+// --- Audio Player ---
+// Three-circle Bauhaus control: yellow −10s (left), red play/pause (centre,
+// largest, with white play triangle or pause bars), blue +10s (right). The
+// underlying <audio> element is hidden — we drive it programmatically via
+// the ref so we get full control over the chrome.
+const AudioPlayer = ({ audioUrl, treasureName }) => {
+  const audioRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  // Reset transport state whenever the source changes (navigating between
+  // stations) — the new <audio> hasn't loaded metadata yet.
+  useEffect(() => {
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+  }, [audioUrl]);
+
+  // Wire all the playback events we care about. Keeps visual state honest
+  // even if the OS pauses the audio (e.g. incoming call) or scrubs it.
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+    const onEnded = () => setIsPlaying(false);
+    const onTime = () => setCurrentTime(audio.currentTime || 0);
+    const onMeta = () => setDuration(Number.isFinite(audio.duration) ? audio.duration : 0);
+    audio.addEventListener('play', onPlay);
+    audio.addEventListener('pause', onPause);
+    audio.addEventListener('ended', onEnded);
+    audio.addEventListener('timeupdate', onTime);
+    audio.addEventListener('loadedmetadata', onMeta);
+    audio.addEventListener('durationchange', onMeta);
+    return () => {
+      audio.removeEventListener('play', onPlay);
+      audio.removeEventListener('pause', onPause);
+      audio.removeEventListener('ended', onEnded);
+      audio.removeEventListener('timeupdate', onTime);
+      audio.removeEventListener('loadedmetadata', onMeta);
+      audio.removeEventListener('durationchange', onMeta);
+    };
+  }, [audioUrl]);
+
+  const togglePlay = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.paused) {
+      // play() returns a Promise — swallow the rejection (autoplay policies,
+      // user gesture missing, etc.) so we don't surface a console error.
+      const p = audio.play();
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    } else {
+      audio.pause();
+    }
+  };
+
+  const skipBy = (delta) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const dur = Number.isFinite(audio.duration) ? audio.duration : Infinity;
+    audio.currentTime = Math.max(0, Math.min(dur, audio.currentTime + delta));
+  };
+
+  // Click anywhere on the progress bar to seek to that point.
+  const handleSeek = (e) => {
+    const audio = audioRef.current;
+    if (!audio || !duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    audio.currentTime = pct * duration;
+  };
+
+  const formatTime = (sec) => {
+    if (!Number.isFinite(sec) || sec < 0) return '0:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const progressPct = duration > 0
+    ? Math.max(0, Math.min(100, (currentTime / duration) * 100))
+    : 0;
+
+  const SIDE_SIZE = 56;
+  const PLAY_SIZE = 88;
+
+  // Shared styling for the two side (skip) buttons.
+  const sideBtnStyle = (bg, fg) => ({
+    width: `${SIDE_SIZE}px`,
+    height: `${SIDE_SIZE}px`,
+    borderRadius: '50%',
+    border: 'none',
+    backgroundColor: bg,
+    color: fg,
+    cursor: 'pointer',
+    fontFamily: "'Space Grotesk', sans-serif",
+    fontWeight: 700,
+    fontSize: '15px',
+    letterSpacing: '-0.02em',
+    lineHeight: 1,
+    padding: 0,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  });
+
+  return (
+    <div style={{
+      marginTop: '20px',
+      padding: '20px 14px',
+      backgroundColor: COLORS.surfaceLow,
+    }}>
+      <Eyebrow spacing="0.18em" style={{ marginBottom: '16px' }}>
+        Talk to me! · {treasureName}
+      </Eyebrow>
+
+      {/* Hidden native element — actual audio engine. */}
+      <audio
+        ref={audioRef}
+        preload="none"
+        style={{ display: 'none' }}
+      >
+        <source src={audioUrl} type="audio/mpeg" />
+      </audio>
+
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '20px',
+      }}>
+        {/* −10 seconds (yellow) */}
+        <button
+          type="button"
+          onClick={() => skipBy(-10)}
+          aria-label="Skip back 10 seconds"
+          style={sideBtnStyle(COLORS.tertiary, COLORS.onSurface)}
+        >
+          −10
+        </button>
+
+        {/* Play / pause (red, larger) */}
+        <button
+          type="button"
+          onClick={togglePlay}
+          aria-label={isPlaying ? 'Pause' : 'Play'}
+          aria-pressed={isPlaying}
+          style={{
+            width: `${PLAY_SIZE}px`,
+            height: `${PLAY_SIZE}px`,
+            borderRadius: '50%',
+            border: 'none',
+            backgroundColor: COLORS.primary,
+            color: '#ffffff',
+            cursor: 'pointer',
+            padding: 0,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {isPlaying ? (
+            // Pause — two white vertical bars
+            <span aria-hidden="true" style={{
+              display: 'inline-flex',
+              gap: '8px',
+            }}>
+              <span style={{ width: '8px', height: '30px', background: '#ffffff' }} />
+              <span style={{ width: '8px', height: '30px', background: '#ffffff' }} />
+            </span>
+          ) : (
+            // Play — white triangle. Nudge right a hair so it looks centred
+            // (a triangle's optical centre is left of its bounding box).
+            <span aria-hidden="true" style={{
+              display: 'inline-block',
+              width: 0,
+              height: 0,
+              borderTop: '16px solid transparent',
+              borderBottom: '16px solid transparent',
+              borderLeft: '24px solid #ffffff',
+              marginLeft: '6px',
+            }} />
+          )}
+        </button>
+
+        {/* +10 seconds (blue) */}
+        <button
+          type="button"
+          onClick={() => skipBy(10)}
+          aria-label="Skip forward 10 seconds"
+          style={sideBtnStyle(COLORS.secondary, '#ffffff')}
+        >
+          +10
+        </button>
+      </div>
+
+      {/* Progress bar — minimal black line. Unplayed portion at 50% opacity,
+          played portion at full opacity, with a small filled circle marking
+          the playhead. Click anywhere on the bar to seek. */}
+      <div style={{ marginTop: '20px', padding: '0 6px' }}>
+        <div
+          onClick={handleSeek}
+          role="slider"
+          aria-label="Seek"
+          aria-valuemin={0}
+          aria-valuemax={Math.floor(duration) || 0}
+          aria-valuenow={Math.floor(currentTime)}
+          style={{
+            position: 'relative',
+            height: '14px',
+            cursor: duration > 0 ? 'pointer' : 'default',
+          }}
+        >
+          {/* Unplayed line (50% opacity, full width) */}
+          <span aria-hidden="true" style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: '50%',
+            height: '2px',
+            transform: 'translateY(-50%)',
+            background: COLORS.onSurface,
+            opacity: 0.5,
+          }} />
+          {/* Played line (100% opacity, up to current position) */}
+          <span aria-hidden="true" style={{
+            position: 'absolute',
+            left: 0,
+            width: `${progressPct}%`,
+            top: '50%',
+            height: '2px',
+            transform: 'translateY(-50%)',
+            background: COLORS.onSurface,
+          }} />
+          {/* Playhead — small filled circle */}
+          <span aria-hidden="true" style={{
+            position: 'absolute',
+            left: `${progressPct}%`,
+            top: '50%',
+            width: '10px',
+            height: '10px',
+            borderRadius: '50%',
+            background: COLORS.onSurface,
+            transform: 'translate(-50%, -50%)',
+          }} />
+        </div>
+
+        {/* Time labels — small Bauhaus-style readout, current on the left
+            (full opacity) and total duration on the right (50% opacity to
+            mirror the unplayed track). */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          marginTop: '8px',
+          fontFamily: "'Space Grotesk', sans-serif",
+          fontWeight: 500,
+          fontSize: '11px',
+          letterSpacing: '0.04em',
+          color: COLORS.onSurface,
+          fontVariantNumeric: 'tabular-nums',
+        }}>
+          <span>{formatTime(currentTime)}</span>
+          <span style={{ opacity: 0.5 }}>{formatTime(duration)}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // --- Photo Carousel (horizontal scroll-snap + pagination dots) ---
 const PhotoCarousel = ({ images, treasureName }) => {

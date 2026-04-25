@@ -97,8 +97,10 @@ If you need fresh ones, generate them with any QR tool (e.g.
 
 ## Design system (don't touch without asking)
 
-- **Palette**: Bauhaus red `#ff3333` / blue `#3399cc` / yellow `#ffff00`,
-  surface `#f9f9f9`, on-surface `#1a1c1c`. Mirror of the map app's `COLORS`.
+- **Palette**: Bauhaus red `#ff3333` / blue `#3399cc` / yellow `#FDE74C`,
+  surface `#f9f9f9`, on-surface `#1a1c1c`. Maintained as a parallel copy of
+  the map app's `COLORS` — the two have diverged (map app currently uses
+  `#175ead` blue and `#930016` deep red) so changes must be mirrored by hand.
 - **Type**: Space Grotesk for headlines / labels, Manrope for body.
 - **Geometry**: 0 rounded corners anywhere. Category primitives: red circle
   (historic), blue square (modern), yellow diamond (secret).
