@@ -715,28 +715,7 @@ const ListScreen = ({ stations, foundIds, onOpenStation }) => {
   const allFound = foundIds.length === stations.length && stations.length > 0;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
-      <Header
-        rightSlot={
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            padding: '6px 10px',
-            backgroundColor: COLORS.surfaceHighest,
-          }}>
-            <Eyebrow spacing="0.18em">Found</Eyebrow>
-            <span style={{
-              fontFamily: "'Space Grotesk', sans-serif",
-              fontWeight: 700,
-              fontSize: '14px',
-              color: COLORS.primary,
-              letterSpacing: '-0.02em',
-            }}>
-              {foundIds.length}/{stations.length}
-            </span>
-          </div>
-        }
-      />
+      <Header />
 
       <main style={{
         flex: 1,
@@ -747,9 +726,6 @@ const ListScreen = ({ stations, foundIds, onOpenStation }) => {
       }}>
         {/* Hero */}
         <section style={{ marginBottom: '28px' }}>
-          <Eyebrow color={COLORS.primary} spacing="0.22em" style={{ marginBottom: '10px' }}>
-            Scheunenviertel
-          </Eyebrow>
           <h2 style={{
             margin: 0,
             fontFamily: "'Space Grotesk', sans-serif",
@@ -796,20 +772,6 @@ const ListScreen = ({ stations, foundIds, onOpenStation }) => {
           ))}
         </div>
 
-        {/* Footer accent */}
-        <div style={{
-          marginTop: '32px',
-          paddingTop: '20px',
-          borderTop: `1px solid ${COLORS.surfaceLow}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}>
-          <AccentRow size={14} />
-          <Eyebrow color={COLORS.onSurfaceVariant} spacing="0.2em">
-            Berlin is for Seekers · Offline
-          </Eyebrow>
-        </div>
       </main>
 
       {/* Bauhaus completion banner (only when every station is found) */}
