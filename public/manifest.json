@@ -4,7 +4,7 @@
   "description": "Index of Scheunenviertel stations. Scan the QR code at each stop to unlock its audio story and photos.",
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#bc001f",
+  "theme_color": "#ff3333",
   "background_color": "#f9f9f9",
   "icons": []
 }

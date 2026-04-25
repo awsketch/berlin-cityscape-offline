@@ -10,10 +10,10 @@ const COLORS = {
   surfaceLowest: '#ffffff',
   onSurface: '#1a1c1c',
   onSurfaceVariant: '#5d3f3d',
-  primary: '#bc001f',        // Bauhaus Red — historic / heritage
-  primaryDeep: '#930016',
-  secondary: '#175ead',      // Bauhaus Blue — modern architecture / utility
-  tertiary: '#d0a600',       // Bauhaus Yellow — secret spots / guidance
+  primary: '#ff3333',        // Bauhaus Red — historic / heritage
+  primaryDeep: '#d92626',
+  secondary: '#3399cc',      // Bauhaus Blue — modern architecture / utility
+  tertiary: '#ffff00',       // Bauhaus Yellow — secret spots / guidance
   found: '#1a1c1c',          // Stark black for "found" state
 };
 
@@ -234,6 +234,31 @@ const StationMarker = ({ stationId, isFound, size = 14, gap = 6 }) => {
 const AccentRow = ({ size = 14, gap = 6 }) => (
   <CircleTrio colors={LOGO_COLOR_ORDER} size={size} gap={gap} />
 );
+
+// --- Station logo ---
+// Renders the per-station PNG placed at
+// `public/stations/<folder>/logo/logo.png`. Used in place of the written
+// station name on both the index list and the detail screen.
+//
+// If the file isn't there yet (404 / image error), falls back to rendering the
+// station name as text styled to fit the slot — so the app keeps working as
+// you author logos one by one.
+const StationLogo = ({ station, imgStyle, fallbackStyle, alt }) => {
+  const [errored, setErrored] = useState(false);
+  const base = process.env.PUBLIC_URL || '';
+  const url = `${base}/stations/${station.folder}/logo/logo.png`;
+  if (errored) {
+    return <span style={fallbackStyle}>{station.name}</span>;
+  }
+  return (
+    <img
+      src={url}
+      alt={alt || station.name}
+      onError={() => setErrored(true)}
+      style={imgStyle}
+    />
+  );
+};
 
 // --- Header ---
 const Header = ({ leftSlot, rightSlot }) => (
@@ -609,8 +634,15 @@ const QRScannerModal = ({ expectedStationName, onClose, onDecoded, error }) => {
 };
 
 // --- List Row (Stitch "seeker list" adapted to inline styles) ---
+// Left block (~half the row width): the three station-color circles enlarged
+// as a backdrop, with the station logo (public/stations/<folder>/logo/logo.png)
+// overlaid on top. Right block: eyebrow + Found/Locked pill + chevron.
 const StationRow = ({ station, isFound, onOpen }) => {
   const style = CATEGORY_STYLE[station.category] || CATEGORY_STYLE.historic;
+  const stationColors = STATION_COLOR_ORDER[station.id] || LOGO_COLOR_ORDER;
+  const backdropColors = isFound
+    ? stationColors
+    : [COLORS.found, COLORS.found, COLORS.found];
 
   return (
     <button
@@ -630,21 +662,67 @@ const StationRow = ({ station, isFound, onOpen }) => {
         cursor: 'pointer',
         textAlign: 'left',
         font: 'inherit',
+        minHeight: '96px',
       }}
     >
-      {/* Left column — three-circle station marker (black until found, then
-          fills in with this station's color permutation). */}
+      {/* Left ~half — enlarged circles as a backdrop, station logo on top.
+          Circles stay black until the station is found, then fill in with
+          its color permutation (discovery reveals identity). */}
       <div style={{
-        flexShrink: 0,
-        width: '88px',
+        flex: '0 0 50%',
+        position: 'relative',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        padding: '10px',
+        minWidth: 0,
       }}>
-        <StationMarker stationId={station.id} isFound={isFound} size={16} gap={6} />
+        {/* Backdrop circles (absolutely positioned, centered, behind logo) */}
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          pointerEvents: 'none',
+        }}>
+          <CircleTrio colors={backdropColors} size={42} gap={10} />
+        </div>
+        {/* Logo (or text fallback) layered on top */}
+        <div style={{
+          position: 'relative',
+          zIndex: 1,
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <StationLogo
+            station={station}
+            imgStyle={{
+              maxWidth: '100%',
+              maxHeight: '64px',
+              objectFit: 'contain',
+              display: 'block',
+            }}
+            fallbackStyle={{
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontWeight: 700,
+              fontSize: '14px',
+              lineHeight: 1.05,
+              textTransform: 'uppercase',
+              letterSpacing: '-0.01em',
+              color: COLORS.onSurface,
+              textAlign: 'center',
+              padding: '0 6px',
+              wordBreak: 'break-word',
+            }}
+          />
+        </div>
       </div>
 
-      {/* Right content — the grey card, now only around text + chevron */}
+      {/* Right content — grey card with eyebrow + found/locked pill + chevron */}
       <div style={{
         flex: 1,
         padding: '18px 18px 18px 20px',
@@ -656,24 +734,10 @@ const StationRow = ({ station, isFound, onOpen }) => {
         backgroundColor: COLORS.surfaceLow,
       }}>
         <div style={{ minWidth: 0 }}>
-          <Eyebrow color={style.color} size={10} spacing="0.22em" style={{ marginBottom: '4px' }}>
+          <Eyebrow color={style.color} size={10} spacing="0.22em" style={{ marginBottom: '8px' }}>
             {`Station ${String(station.id).padStart(2, '0')}`}
           </Eyebrow>
-          <div style={{
-            fontFamily: "'Space Grotesk', sans-serif",
-            fontWeight: 700,
-            fontSize: '18px',
-            lineHeight: 1.1,
-            textTransform: 'uppercase',
-            letterSpacing: '-0.01em',
-            color: COLORS.onSurface,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}>
-            {station.name}
-          </div>
-          <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             {isFound ? (
               <span style={{
                 display: 'inline-block',
@@ -932,18 +996,34 @@ const DetailScreen = ({ station, isFound, images, imagesLoaded, onBack, onOpenSc
           {`Station ${String(station.id).padStart(2, '0')}`}
         </Eyebrow>
 
-        {/* Title */}
+        {/* Title — replaced by station logo image
+            (public/stations/<folder>/logo/logo.png).
+            If the file isn't present, falls back to the text title styled the
+            way the heading used to look. The <h2> wrapper preserves the
+            heading semantics for assistive tech. */}
         <h2 style={{
           margin: 0,
-          fontFamily: "'Space Grotesk', sans-serif",
-          fontWeight: 700,
-          fontSize: 'clamp(30px, 8vw, 44px)',
-          lineHeight: 1,
-          textTransform: 'uppercase',
-          letterSpacing: '-0.02em',
-          color: COLORS.onSurface,
+          display: 'flex',
+          alignItems: 'center',
         }}>
-          {station.name}
+          <StationLogo
+            station={station}
+            imgStyle={{
+              maxWidth: '100%',
+              maxHeight: '120px',
+              objectFit: 'contain',
+              display: 'block',
+            }}
+            fallbackStyle={{
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontWeight: 700,
+              fontSize: 'clamp(30px, 8vw, 44px)',
+              lineHeight: 1,
+              textTransform: 'uppercase',
+              letterSpacing: '-0.02em',
+              color: COLORS.onSurface,
+            }}
+          />
         </h2>
 
         {/* Category color bar underline */}
@@ -953,19 +1033,6 @@ const DetailScreen = ({ station, isFound, images, imagesLoaded, onBack, onOpenSc
           backgroundColor: style.color,
           margin: '14px 0 18px 0',
         }} />
-
-        {/* Description */}
-        {station.description && (
-          <p style={{
-            margin: '0 0 20px 0',
-            fontFamily: "'Manrope', sans-serif",
-            fontSize: '15px',
-            lineHeight: 1.55,
-            color: COLORS.onSurface,
-          }}>
-            {station.description}
-          </p>
-        )}
 
         {isFound ? (
           // --- Unlocked state ---
@@ -1031,6 +1098,33 @@ const DetailScreen = ({ station, isFound, images, imagesLoaded, onBack, onOpenSc
             {/* Audio */}
             <AudioPlayer audioUrl={station.audioUrl} treasureName={station.name} />
 
+            {/* Long description — the in-depth story, only after unlock.
+                Lives in public/stations/<folder>/description-long.txt and is
+                rendered below the photos + audio player. Blank lines split
+                paragraphs. */}
+            {station.descriptionLong && (
+              <div style={{ marginTop: '28px' }}>
+                <Eyebrow color={style.color} spacing="0.2em" style={{ marginBottom: '8px' }}>
+                  About this place
+                </Eyebrow>
+                {station.descriptionLong.split(/\n\s*\n/).map((para, i) => (
+                  <p
+                    key={i}
+                    style={{
+                      margin: '0 0 12px 0',
+                      fontFamily: "'Manrope', sans-serif",
+                      fontSize: '15px',
+                      lineHeight: 1.6,
+                      color: COLORS.onSurface,
+                      whiteSpace: 'pre-wrap',
+                    }}
+                  >
+                    {para.trim()}
+                  </p>
+                ))}
+              </div>
+            )}
+
             {/* Accent row */}
             <div style={{ marginTop: '28px' }}>
               <AccentRow size={14} />
@@ -1039,6 +1133,21 @@ const DetailScreen = ({ station, isFound, images, imagesLoaded, onBack, onOpenSc
         ) : (
           // --- Locked state ---
           <>
+            {/* Short description — the teaser shown before unlock, in italic
+                above the clue. Lives in public/stations/<folder>/description.txt. */}
+            {station.description && (
+              <p style={{
+                margin: '0 0 18px 0',
+                fontFamily: "'Manrope', sans-serif",
+                fontStyle: 'italic',
+                fontSize: '15px',
+                lineHeight: 1.55,
+                color: COLORS.onSurface,
+              }}>
+                {station.description}
+              </p>
+            )}
+
             {/* Clue block */}
             <div style={{
               backgroundColor: COLORS.surfaceLow,
@@ -1319,12 +1428,13 @@ export default function OfflineApp() {
     const load = async () => {
       const entries = await Promise.all(
         STATIONS.map(async (s) => {
-          const [title, description, clue] = await Promise.all([
+          const [title, description, descriptionLong, clue] = await Promise.all([
             fetchStationText(s.folder, 'title.txt'),
             fetchStationText(s.folder, 'description.txt'),
+            fetchStationText(s.folder, 'description-long.txt'),
             fetchStationText(s.folder, 'clue.txt'),
           ]);
-          return [s.id, { title, description, clue }];
+          return [s.id, { title, description, descriptionLong, clue }];
         })
       );
       if (!cancelled) {
@@ -1344,6 +1454,7 @@ export default function OfflineApp() {
           ...s,
           name: c.title || fallbackTitle(s),
           description: c.description || '',
+          descriptionLong: c.descriptionLong || '',
           clue: c.clue || '',
         };
       }),

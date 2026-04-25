@@ -3,7 +3,11 @@
 Each `station-N/` folder holds the editable content for one station:
 
 - `title.txt` — station name (one line)
-- `description.txt` — short description (1–3 sentences)
+- `description.txt` — **short** description (1–3 sentences). Shown in italic
+  *above the clue* on the locked station page, before the QR is scanned.
+- `description-long.txt` — **long** description (a few paragraphs). Shown
+  *below the photo carousel and the audio player* once the station is
+  unlocked. Blank lines split it into paragraphs.
 - `clue.txt` — hint to where the QR code is hidden
 - `images/` — photos shown in the unlocked-state carousel, named
   `image-1.jpg`, `image-2.jpg`, … (see `images/README.md`)
