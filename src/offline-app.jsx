@@ -651,13 +651,15 @@ const StationRow = ({ station, isFound, onOpen }) => {
         width: '100%',
         padding: '14px 0',
         margin: 0,
-        marginBottom: '4px',
         backgroundColor: 'transparent',
         border: 'none',
         color: COLORS.onSurface,
         cursor: 'pointer',
         textAlign: 'left',
         font: 'inherit',
+        // Match every row to the natural height of the tallest logo
+        // (station 5) so the list reads as a uniform stack.
+        minHeight: '84px',
       }}
     >
       {/* Left column — small three-circle station marker.
@@ -711,7 +713,7 @@ const StationRow = ({ station, isFound, onOpen }) => {
 };
 
 // --- List Screen ---
-const ListScreen = ({ stations, foundIds, onOpenStation }) => {
+const ListScreen = ({ stations, foundIds, onOpenStation, onOpenHowTo }) => {
   const allFound = foundIds.length === stations.length && stations.length > 0;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
@@ -759,10 +761,20 @@ const ListScreen = ({ stations, foundIds, onOpenStation }) => {
           </p>
         </section>
 
-        {/* Station list */}
-        <div role="list" style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        {/* Station list — bounded top + bottom by black lines, with a black
+            divider beneath each row. */}
+        <div role="list" style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 0,
+          borderTop: `1px solid ${COLORS.onSurface}`,
+        }}>
           {stations.map((s) => (
-            <div role="listitem" key={s.id}>
+            <div
+              role="listitem"
+              key={s.id}
+              style={{ borderBottom: `1px solid ${COLORS.onSurface}` }}
+            >
               <StationRow
                 station={s}
                 isFound={foundIds.includes(s.id)}
@@ -771,6 +783,42 @@ const ListScreen = ({ stations, foundIds, onOpenStation }) => {
             </div>
           ))}
         </div>
+
+        {/* "How I Work" — opens the How To page */}
+        <button
+          type="button"
+          onClick={onOpenHowTo}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '12px',
+            width: '100%',
+            backgroundColor: COLORS.onSurface,
+            color: COLORS.surfaceLowest,
+            border: 'none',
+            borderRadius: 0,
+            padding: '16px 20px',
+            marginTop: '28px',
+            fontFamily: "'Space Grotesk', sans-serif",
+            fontWeight: 700,
+            fontSize: '14px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.2em',
+            cursor: 'pointer',
+          }}
+        >
+          How I Work
+          {/* Right-pointing chevron */}
+          <span aria-hidden="true" style={{
+            display: 'inline-block',
+            width: 0,
+            height: 0,
+            borderTop: '5px solid transparent',
+            borderBottom: '5px solid transparent',
+            borderLeft: `7px solid ${COLORS.surfaceLowest}`,
+          }} />
+        </button>
 
       </main>
 
@@ -815,6 +863,136 @@ const ListScreen = ({ stations, foundIds, onOpenStation }) => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+// --- How To Screen (reached via the "How I Work" button on the index) ---
+const HowToScreen = ({ onBack }) => {
+  const steps = [
+    {
+      n: '01',
+      title: 'Find a station on the printed map',
+      body:
+        "Open the printed map of the Scheunenviertel that came with this experience. Pick a station that calls to you.",
+    },
+    {
+      n: '02',
+      title: 'Open its page in the app',
+      body:
+        "Tap the station on the index list. You'll see a clue describing where the QR code is hidden at that spot.",
+    },
+    {
+      n: '03',
+      title: 'Walk there & scan the QR',
+      body:
+        'Find the printed QR code at the station, tap "Scan QR Code", and point your camera at it.',
+    },
+    {
+      n: '04',
+      title: 'Listen, look, linger',
+      body:
+        'Once unlocked, the station reveals its audio story and photo carousel. Stay a while.',
+    },
+  ];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+      <Header
+        leftSlot={
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Back to index"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '6px 10px',
+              background: COLORS.surfaceHighest,
+              border: 'none',
+              cursor: 'pointer',
+              color: COLORS.onSurface,
+              font: 'inherit',
+            }}
+          >
+            <span aria-hidden="true" style={{
+              display: 'inline-block',
+              width: 0,
+              height: 0,
+              borderTop: '5px solid transparent',
+              borderBottom: '5px solid transparent',
+              borderRight: `6px solid ${COLORS.onSurface}`,
+            }} />
+            <Eyebrow spacing="0.18em">Index</Eyebrow>
+          </button>
+        }
+      />
+
+      <main style={{
+        flex: 1,
+        padding: '28px 20px 40px 20px',
+        maxWidth: '720px',
+        width: '100%',
+        margin: '0 auto',
+      }}>
+        <h2 style={{
+          margin: 0,
+          fontFamily: "'Space Grotesk', sans-serif",
+          fontWeight: 700,
+          fontSize: 'clamp(38px, 11vw, 64px)',
+          lineHeight: 0.92,
+          textTransform: 'uppercase',
+          letterSpacing: '-0.03em',
+          color: COLORS.onSurface,
+        }}>
+          How I<br />
+          <span style={{ color: COLORS.primary }}>Work</span>
+        </h2>
+        <div style={{
+          width: '96px',
+          height: '8px',
+          backgroundColor: COLORS.secondary,
+          margin: '18px 0 28px 0',
+        }} />
+
+        {steps.map((step, i) => (
+          <div
+            key={step.n}
+            style={{
+              paddingTop: i === 0 ? '20px' : '20px',
+              paddingBottom: '20px',
+              borderTop: `1px solid ${COLORS.onSurface}`,
+              borderBottom: i === steps.length - 1 ? `1px solid ${COLORS.onSurface}` : 'none',
+            }}
+          >
+            <Eyebrow color={COLORS.primary} spacing="0.22em" style={{ marginBottom: '6px' }}>
+              Step · {step.n}
+            </Eyebrow>
+            <div style={{
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontWeight: 700,
+              fontSize: '20px',
+              lineHeight: 1.15,
+              textTransform: 'uppercase',
+              letterSpacing: '-0.01em',
+              color: COLORS.onSurface,
+              marginBottom: '8px',
+            }}>
+              {step.title}
+            </div>
+            <p style={{
+              margin: 0,
+              fontFamily: "'Manrope', sans-serif",
+              fontSize: '14px',
+              lineHeight: 1.55,
+              color: COLORS.onSurfaceVariant,
+            }}>
+              {step.body}
+            </p>
+          </div>
+        ))}
+      </main>
     </div>
   );
 };
@@ -1296,6 +1474,7 @@ const BootSplash = ({ onDone }) => {
 export default function OfflineApp() {
   const [foundIds, setFoundIds] = useState(loadInitialFound);
   const [activeId, setActiveId] = useState(null); // null = list screen
+  const [howToOpen, setHowToOpen] = useState(false); // "How I Work" page
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanError, setScanError] = useState(null);
   const [justUnlockedId, setJustUnlockedId] = useState(null);
@@ -1399,6 +1578,11 @@ export default function OfflineApp() {
     setScannerOpen(false);
     setScanError(null);
   }, []);
+  const openHowTo = useCallback(() => {
+    setHowToOpen(true);
+    window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
+  }, []);
+  const closeHowTo = useCallback(() => setHowToOpen(false), []);
 
   const handleDecoded = useCallback((decodedText, errorMessage) => {
     if (errorMessage) {
@@ -1430,7 +1614,9 @@ export default function OfflineApp() {
       {/* --- Boot splash (first paint only) --- */}
       {!bootDone && <BootSplash onDone={() => setBootDone(true)} />}
 
-      {activeStation ? (
+      {howToOpen ? (
+        <HowToScreen onBack={closeHowTo} />
+      ) : activeStation ? (
         <DetailScreen
           station={activeStation}
           isFound={activeIsFound}
@@ -1444,6 +1630,7 @@ export default function OfflineApp() {
           stations={stations}
           foundIds={foundIds}
           onOpenStation={openStation}
+          onOpenHowTo={openHowTo}
         />
       )}
 
