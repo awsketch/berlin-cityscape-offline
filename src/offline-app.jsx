@@ -635,14 +635,11 @@ const QRScannerModal = ({ expectedStationName, onClose, onDecoded, error }) => {
 };
 
 // --- List Row (Stitch "seeker list" adapted to inline styles) ---
-// Left column: the original small three-circle station marker (black until
-// found, then fills in with this station's color permutation).
-// Right grey card: eyebrow + station logo (replaces the written name) +
-// Found/Locked pill + chevron. If the logo file isn't present yet, the logo
-// component falls back to the station name text.
+// Stripped-down layout: small three-circle station marker on the left, station
+// logo on the right. No grey card, no eyebrow, no Found/Locked pill, no
+// chevron. Locked stations show the marker at 30% opacity (still black);
+// finding fills in this station's color permutation at full opacity.
 const StationRow = ({ station, isFound, onOpen }) => {
-  const style = CATEGORY_STYLE[station.category] || CATEGORY_STYLE.historic;
-
   return (
     <button
       type="button"
@@ -650,9 +647,9 @@ const StationRow = ({ station, isFound, onOpen }) => {
       aria-label={`Open ${station.name}`}
       style={{
         display: 'flex',
-        alignItems: 'stretch',
+        alignItems: 'center',
         width: '100%',
-        padding: 0,
+        padding: '14px 0',
         margin: 0,
         marginBottom: '4px',
         backgroundColor: 'transparent',
@@ -663,102 +660,49 @@ const StationRow = ({ station, isFound, onOpen }) => {
         font: 'inherit',
       }}
     >
-      {/* Left column — small three-circle station marker */}
+      {/* Left column — small three-circle station marker.
+          Locked: black circles at 30% opacity (ghosted).
+          Found:  station color permutation at full opacity. */}
       <div style={{
         flexShrink: 0,
         width: '88px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        opacity: isFound ? 1 : 0.3,
       }}>
         <StationMarker stationId={station.id} isFound={isFound} size={16} gap={6} />
       </div>
 
-      {/* Right content — grey card around eyebrow + logo + pill + chevron */}
+      {/* Right content — station logo only (or text fallback). */}
       <div style={{
         flex: 1,
-        padding: '18px 18px 18px 20px',
+        padding: '0 12px 0 8px',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '12px',
         minWidth: 0,
-        backgroundColor: COLORS.surfaceLow,
       }}>
-        <div style={{ minWidth: 0 }}>
-          <Eyebrow color={style.color} size={10} spacing="0.22em" style={{ marginBottom: '6px' }}>
-            {`Station ${String(station.id).padStart(2, '0')}`}
-          </Eyebrow>
-          {/* Station logo (replaces the written station name).
-              Falls back to the text title if logo.png is missing. */}
-          <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-            <StationLogo
-              station={station}
-              imgStyle={{
-                maxHeight: '48px',
-                maxWidth: '100%',
-                objectFit: 'contain',
-                display: 'block',
-              }}
-              fallbackStyle={{
-                fontFamily: "'Space Grotesk', sans-serif",
-                fontWeight: 700,
-                fontSize: '18px',
-                lineHeight: 1.1,
-                textTransform: 'uppercase',
-                letterSpacing: '-0.01em',
-                color: COLORS.onSurface,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                display: 'inline-block',
-                maxWidth: '100%',
-              }}
-            />
-          </div>
-          <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            {isFound ? (
-              <span style={{
-                display: 'inline-block',
-                fontFamily: "'Space Grotesk', sans-serif",
-                fontWeight: 700,
-                fontSize: '9px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.18em',
-                padding: '4px 8px',
-                backgroundColor: COLORS.onSurface,
-                color: COLORS.surfaceLowest,
-              }}>
-                ✓ Found
-              </span>
-            ) : (
-              <span style={{
-                display: 'inline-block',
-                fontFamily: "'Space Grotesk', sans-serif",
-                fontWeight: 700,
-                fontSize: '9px',
-                textTransform: 'uppercase',
-                letterSpacing: '0.18em',
-                padding: '4px 8px',
-                color: COLORS.onSurfaceVariant,
-                border: `1px solid ${COLORS.surfaceHighest}`,
-                backgroundColor: 'transparent',
-              }}>
-                Locked
-              </span>
-            )}
-          </div>
-        </div>
-        {/* Right-pointing chevron (pure CSS triangle) */}
-        <span
-          aria-hidden="true"
-          style={{
-            flexShrink: 0,
-            width: 0,
-            height: 0,
-            borderTop: '7px solid transparent',
-            borderBottom: '7px solid transparent',
-            borderLeft: `9px solid ${COLORS.onSurface}`,
+        <StationLogo
+          station={station}
+          imgStyle={{
+            maxHeight: '56px',
+            maxWidth: '100%',
+            objectFit: 'contain',
+            display: 'block',
+          }}
+          fallbackStyle={{
+            fontFamily: "'Space Grotesk', sans-serif",
+            fontWeight: 700,
+            fontSize: '18px',
+            lineHeight: 1.1,
+            textTransform: 'uppercase',
+            letterSpacing: '-0.01em',
+            color: COLORS.onSurface,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            display: 'inline-block',
+            maxWidth: '100%',
           }}
         />
       </div>
