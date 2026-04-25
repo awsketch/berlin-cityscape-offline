@@ -224,6 +224,7 @@ const CircleTrio = ({ colors, size = 14, gap = 6 }) => (
 // Three circles in this station's assigned order. Default state = all black;
 // once the station is found, the row fills in with its colour permutation.
 // Discovery reveals identity, rather than fading it.
+// eslint-disable-next-line no-unused-vars
 const StationMarker = ({ stationId, isFound, size = 14, gap = 6 }) => {
   const colors = STATION_COLOR_ORDER[stationId] || LOGO_COLOR_ORDER;
   const display = isFound ? colors : [COLORS.found, COLORS.found, COLORS.found];
