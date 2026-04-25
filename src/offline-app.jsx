@@ -17,11 +17,35 @@ const COLORS = {
   found: '#1a1c1c',          // Stark black for "found" state
 };
 
+// Categories still drive the eyebrow text colour and label. The `shape` field
+// is gone — every station now uses the same 3-circle marker form, with the
+// per-station identity coming from STATION_COLOR_ORDER below instead of from
+// a unique shape per category.
 const CATEGORY_STYLE = {
-  historic: { color: COLORS.primary, label: 'Historic Site', shape: 'circle' },
-  modern:   { color: COLORS.secondary, label: 'Modern Architecture', shape: 'square' },
-  secret:   { color: COLORS.tertiary, label: 'Secret Spot', shape: 'triangle' },
+  historic: { color: COLORS.primary,   label: 'Historic Site' },
+  modern:   { color: COLORS.secondary, label: 'Modern Architecture' },
+  secret:   { color: COLORS.tertiary,  label: 'Secret Spot' },
 };
+
+// --- Per-station marker colour order ---
+// Every station's marker is the same form: three small circles in a row.
+// Identity comes from the *order* of red / yellow / blue. With 6 stations and
+// 3! = 6 unique permutations, each station gets one. Keep this stable —
+// people will memorise stations by their colour order, like a key signature.
+//
+// Indexed by station id (1-based). Arrays are read left-to-right.
+const STATION_COLOR_ORDER = {
+  1: [COLORS.primary,   COLORS.tertiary,  COLORS.secondary], // R Y B
+  2: [COLORS.primary,   COLORS.secondary, COLORS.tertiary],  // R B Y
+  3: [COLORS.tertiary,  COLORS.primary,   COLORS.secondary], // Y R B
+  4: [COLORS.tertiary,  COLORS.secondary, COLORS.primary],   // Y B R
+  5: [COLORS.secondary, COLORS.primary,   COLORS.tertiary],  // B R Y
+  6: [COLORS.secondary, COLORS.tertiary,  COLORS.primary],   // B Y R
+};
+
+// The "always-colourful" logo order — also drives the boot splash convergence.
+// Red leads (matches the brand-primary colour used on the title text).
+const LOGO_COLOR_ORDER = [COLORS.primary, COLORS.tertiary, COLORS.secondary];
 
 // Single storage key: in the offline app, scanning the QR both unlocks the
 // station and marks it 'found' — so we only persist one array.
@@ -167,47 +191,48 @@ const extractToken = (raw) => {
   return trimmed;
 };
 
-// --- Category shape (solid geometric primitive: circle / square / triangle) ---
-const CategoryShape = ({ category, size = 20 }) => {
-  const style = CATEGORY_STYLE[category] || CATEGORY_STYLE.historic;
-  if (style.shape === 'triangle') {
-    // Equilateral triangle via CSS borders — base `size`, height ~0.866 * size.
-    const height = Math.round(size * 0.866);
-    return (
+// --- Three-circle row ---
+// The single visual primitive for all marker / logo / accent uses across the
+// app. Pass an explicit `colors` array of three values, or use the helpers
+// below (StationMarker / Logo) which derive colours from a station id or the
+// logo convention.
+const CircleTrio = ({ colors, size = 14, gap = 6 }) => (
+  <span
+    aria-hidden="true"
+    style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: `${gap}px`,
+    }}
+  >
+    {colors.map((c, i) => (
       <span
-        aria-hidden="true"
+        key={i}
         style={{
+          width: `${size}px`,
+          height: `${size}px`,
+          background: c,
+          borderRadius: '50%',
           display: 'inline-block',
-          width: 0,
-          height: 0,
-          borderLeft: `${size / 2}px solid transparent`,
-          borderRight: `${size / 2}px solid transparent`,
-          borderBottom: `${height}px solid ${style.color}`,
         }}
       />
-    );
-  }
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        display: 'inline-block',
-        width: `${size}px`,
-        height: `${size}px`,
-        background: style.color,
-        borderRadius: style.shape === 'circle' ? '50%' : 0,
-      }}
-    />
-  );
+    ))}
+  </span>
+);
+
+// --- Per-station marker ---
+// Three circles in this station's assigned order. Default state = all black;
+// once the station is found, the row fills in with its colour permutation.
+// Discovery reveals identity, rather than fading it.
+const StationMarker = ({ stationId, isFound, size = 14, gap = 6 }) => {
+  const colors = STATION_COLOR_ORDER[stationId] || LOGO_COLOR_ORDER;
+  const display = isFound ? colors : [COLORS.found, COLORS.found, COLORS.found];
+  return <CircleTrio colors={display} size={size} gap={gap} />;
 };
 
-// --- Bauhaus-accent row (the three-square graphic element) ---
-const AccentRow = ({ size = 14 }) => (
-  <div style={{ display: 'flex', gap: '6px' }} aria-hidden="true">
-    <span style={{ width: `${size}px`, height: `${size}px`, background: COLORS.primary }} />
-    <span style={{ width: `${size}px`, height: `${size}px`, background: COLORS.secondary }} />
-    <span style={{ width: `${size}px`, height: `${size}px`, background: COLORS.tertiary }} />
-  </div>
+// --- Bauhaus-accent row (decorative — always colourful, logo order) ---
+const AccentRow = ({ size = 14, gap = 6 }) => (
+  <CircleTrio colors={LOGO_COLOR_ORDER} size={size} gap={gap} />
 );
 
 // --- Header ---
@@ -227,17 +252,9 @@ const Header = ({ leftSlot, rightSlot }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
       {leftSlot || (
         <>
-          <span aria-hidden="true" style={{
-            display: 'inline-grid',
-            gridTemplateColumns: '8px 8px',
-            gridTemplateRows: '8px 8px',
-            gap: '3px',
-          }}>
-            <span style={{ background: COLORS.primary }} />
-            <span style={{ background: COLORS.primary }} />
-            <span style={{ background: COLORS.primary }} />
-            <span style={{ background: COLORS.primary }} />
-          </span>
+          {/* 3-circle logo (red, yellow, blue — LOGO_COLOR_ORDER). The boot
+              splash converges to this position on first paint. */}
+          <CircleTrio colors={LOGO_COLOR_ORDER} size={14} gap={6} />
           <h1 style={{
             margin: 0,
             fontFamily: "'Space Grotesk', sans-serif",
@@ -615,7 +632,8 @@ const StationRow = ({ station, isFound, onOpen }) => {
         font: 'inherit',
       }}
     >
-      {/* Left column with solid category shape (no background) */}
+      {/* Left column — three-circle station marker (black until found, then
+          fills in with this station's color permutation). */}
       <div style={{
         flexShrink: 0,
         width: '88px',
@@ -623,7 +641,7 @@ const StationRow = ({ station, isFound, onOpen }) => {
         alignItems: 'center',
         justifyContent: 'center',
       }}>
-        <CategoryShape category={station.category} size={44} />
+        <StationMarker stationId={station.id} isFound={isFound} size={16} gap={6} />
       </div>
 
       {/* Right content — the grey card, now only around text + chevron */}
@@ -824,7 +842,7 @@ const ListScreen = ({ stations, foundIds, onOpenStation }) => {
               height: '20px',
               background: COLORS.tertiary,
               display: 'inline-block',
-              transform: 'rotate(45deg)',
+              borderRadius: '50%',
             }} />
             <div>
               <Eyebrow color="rgba(255,255,255,0.85)" style={{ marginBottom: '2px' }}>
@@ -842,9 +860,9 @@ const ListScreen = ({ stations, foundIds, onOpenStation }) => {
             </div>
           </div>
           <div style={{ display: 'flex', gap: '6px' }} aria-hidden="true">
-            <span style={{ width: '14px', height: '14px', background: '#ffffff', display: 'inline-block' }} />
-            <span style={{ width: '14px', height: '14px', background: COLORS.secondary, display: 'inline-block' }} />
-            <span style={{ width: '14px', height: '14px', background: COLORS.tertiary, display: 'inline-block' }} />
+            <span style={{ width: '14px', height: '14px', background: '#ffffff', display: 'inline-block', borderRadius: '50%' }} />
+            <span style={{ width: '14px', height: '14px', background: COLORS.secondary, display: 'inline-block', borderRadius: '50%' }} />
+            <span style={{ width: '14px', height: '14px', background: COLORS.tertiary, display: 'inline-block', borderRadius: '50%' }} />
           </div>
         </div>
       )}
@@ -1185,6 +1203,101 @@ const UnlockToast = ({ station }) => {
   );
 };
 
+// --- Boot splash ---
+// Three big circles (red, yellow, blue — LOGO_COLOR_ORDER) burst from dots in
+// unison, hold briefly, then shrink and translate to land on the matching
+// circle of the 3-circle header logo, fading out as the static logo takes over
+// underneath. Total runtime: 2.5s.
+//
+// Geometry assumptions (kept in sync with the Header's logo):
+// - Each big splash circle is 72px, 28px gap → row width = 3*72 + 2*28 = 272px
+// - Each logo circle is 14px, 6px gap → row width = 3*14 + 2*6 = 54px
+// - Header padding is 14px top / 20px left, so logo-circle 1 (red, leftmost)
+//   sits at viewport (27px, 21px); logo-circle 2 (yellow) at (47px, 21px);
+//   logo-circle 3 (blue) at (67px, 21px).
+// - End-state scale = 14/72 ≈ 0.19 so the splash circles match logo size.
+//
+// Implementation notes:
+// - Three explicit @keyframes (one per circle) — no CSS variables in
+//   keyframes (those can silently fail in some build pipelines).
+// - Timer captured in a ref so React re-renders / StrictMode double-mounts
+//   never reset the 2.5s countdown.
+const BootSplash = ({ onDone }) => {
+  const onDoneRef = useRef(onDone);
+  useEffect(() => { onDoneRef.current = onDone; });
+  useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.log('[BootSplash] mounted');
+    const t = setTimeout(() => onDoneRef.current && onDoneRef.current(), 2500);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <div
+      role="presentation"
+      aria-hidden="true"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: COLORS.surface,
+        zIndex: 10000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        animation: 'bootSplashFade 0.4s ease-in 2.1s both',
+        pointerEvents: 'none',
+      }}
+    >
+      <style>{`
+        @keyframes bootSplashFade {
+          to { opacity: 0; }
+        }
+        /* Big-circle 1 (red, leftmost): screen-center starts at -100px from row
+           center → -50vw - 100px from viewport-left. End at logo position 27px. */
+        @keyframes bootCircleRed {
+          0%   { transform: translate(0,0) scale(0);    opacity: 0; }
+          10%  { transform: translate(0,0) scale(0.08); opacity: 1; }
+          56%  { transform: translate(0,0) scale(1);    opacity: 1; }
+          76%  { transform: translate(0,0) scale(1);    opacity: 1; }
+          100% { transform: translate(calc(-50vw + 127px), calc(-50vh + 21px)) scale(0.19); opacity: 0; }
+        }
+        /* Big-circle 2 (yellow, middle). End at logo position 47px. */
+        @keyframes bootCircleYellow {
+          0%   { transform: translate(0,0) scale(0);    opacity: 0; }
+          10%  { transform: translate(0,0) scale(0.08); opacity: 1; }
+          56%  { transform: translate(0,0) scale(1);    opacity: 1; }
+          76%  { transform: translate(0,0) scale(1);    opacity: 1; }
+          100% { transform: translate(calc(-50vw + 47px), calc(-50vh + 21px)) scale(0.19); opacity: 0; }
+        }
+        /* Big-circle 3 (blue, rightmost): screen-center starts at +100px from
+           row center. End at logo position 67px. */
+        @keyframes bootCircleBlue {
+          0%   { transform: translate(0,0) scale(0);    opacity: 0; }
+          10%  { transform: translate(0,0) scale(0.08); opacity: 1; }
+          56%  { transform: translate(0,0) scale(1);    opacity: 1; }
+          76%  { transform: translate(0,0) scale(1);    opacity: 1; }
+          100% { transform: translate(calc(-50vw - 33px), calc(-50vh + 21px)) scale(0.19); opacity: 0; }
+        }
+        .boot-circle {
+          width: 72px;
+          height: 72px;
+          border-radius: 50%;
+          transform-origin: 50% 50%;
+          will-change: transform, opacity;
+        }
+        .boot-circle--red    { animation: bootCircleRed    2.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+        .boot-circle--yellow { animation: bootCircleYellow 2.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+        .boot-circle--blue   { animation: bootCircleBlue   2.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+      `}</style>
+      <div style={{ display: 'flex', gap: '28px', alignItems: 'center' }}>
+        <div className="boot-circle boot-circle--red"    style={{ backgroundColor: COLORS.primary }} />
+        <div className="boot-circle boot-circle--yellow" style={{ backgroundColor: COLORS.tertiary }} />
+        <div className="boot-circle boot-circle--blue"   style={{ backgroundColor: COLORS.secondary }} />
+      </div>
+    </div>
+  );
+};
+
 // --- Main App Component ---
 export default function OfflineApp() {
   const [foundIds, setFoundIds] = useState(loadInitialFound);
@@ -1192,6 +1305,7 @@ export default function OfflineApp() {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanError, setScanError] = useState(null);
   const [justUnlockedId, setJustUnlockedId] = useState(null);
+  const [bootDone, setBootDone] = useState(false); // splash overlay until 2.5s
 
   // Content loaded from public/stations/<folder>/*.txt — keyed by id.
   const [stationContent, setStationContent] = useState({});
@@ -1317,6 +1431,9 @@ export default function OfflineApp() {
       minHeight: '100vh',
       backgroundColor: COLORS.surface,
     }}>
+      {/* --- Boot splash (first paint only) --- */}
+      {!bootDone && <BootSplash onDone={() => setBootDone(true)} />}
+
       {activeStation ? (
         <DetailScreen
           station={activeStation}
