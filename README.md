@@ -51,13 +51,20 @@ App Cityscape Offline/
 ├── public/
 │   ├── index.html            Google Fonts (Space Grotesk + Manrope) + manifest.
 │   ├── manifest.json         PWA manifest (Kartograph Offline, red theme).
-│   ├── audio/                Per-station MP3s. Naming: NN-slug.mp3.
+│   ├── audio/                Per-station audio. Naming: must start with the
+│   │                         station number, e.g. NN-anything.mp3.
+│   │                         manifest.json is auto-generated.
 │   └── stations/
-│       └── station-<N>/      Content per station (same layout as map app).
-│           ├── title.txt
+│       ├── manifest.json     Auto-generated folder→name map.
+│       └── station-<N>/      Content per station.
+│           ├── <name>.txt    Empty marker file; **filename = station name**.
 │           ├── description.txt
+│           ├── description-long.txt
 │           ├── clue.txt      Hint about where the printed QR is hidden.
 │           └── images/       image-1.jpg, image-2.jpg, … for the carousel.
+├── scripts/
+│   ├── generate-audio-manifest.js     Scans public/audio/ → manifest.json.
+│   └── generate-stations-manifest.js  Scans station folders → manifest.json.
 └── src/
     ├── index.js              Entry point — renders OfflineApp.
     └── offline-app.jsx       The whole app: list, detail, QR scanner, carousel.
@@ -65,20 +72,27 @@ App Cityscape Offline/
 
 ## Editing a station
 
-- **Text** (title / description / clue) lives in the `.txt` files under
+- **Station name**: rename the marker `.txt` file in `public/stations/
+  station-<N>/`. The file's *filename* is the station name; the contents are
+  ignored. The manifest regenerates on next `npm start` / `npm run build`
+  (or run `npm run stations-manifest` manually).
+- **Text** (description / clue) lives in the `.txt` files under
   `public/stations/station-<N>/`. No rebuild needed — refresh the page and
   the content re-fetches.
 - **Photos** go into `public/stations/station-<N>/images/` named sequentially:
   `image-1.jpg`, `image-2.jpg`, … The carousel auto-enumerates until it hits
   the first gap. Both `.jpg`, `.jpeg`, `.png`, and `.webp` are supported at
   each index.
-- **Audio** goes into `public/audio/` with the filename that matches the
-  `audioUrl` field for that station in `src/offline-app.jsx`.
+- **Audio** goes into `public/audio/`. The filename must start with the
+  station number (with optional leading zero), e.g. `04-whatever.mp3` →
+  station 4. The runtime resolves the URL from `audio/manifest.json`, which
+  regenerates automatically on `npm start` / `npm run build`.
 - **Changing which place a slot points to** (e.g. swapping station 6 for
   something different): edit the corresponding entry in the `STATIONS` array
-  in `src/offline-app.jsx` (category + audio filename + unlockToken), rewrite
-  the .txt files, drop in new images, and re-print the QR code if the token
-  changes.
+  in `src/offline-app.jsx` (category + unlockToken), rename the marker file,
+  rewrite the description / clue files, drop in a new audio file with the
+  same number prefix, drop in new images, and re-print the QR code if the
+  token changes.
 
 ## QR codes
 

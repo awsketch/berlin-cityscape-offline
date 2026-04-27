@@ -52,9 +52,11 @@ const LOGO_COLOR_ORDER = [COLORS.primary, COLORS.tertiary, COLORS.secondary];
 const STORAGE_KEY = 'berlinKartographOfflineFound';
 
 // Station config — Scheunenviertel, Berlin Mitte.
-// Structural data only: editable title / description / clue text lives in
-// `public/stations/<folder>/*.txt` and is loaded at runtime. Images live in
-// `public/stations/<folder>/images/` as `image-1.jpg`, `image-2.jpg`, …
+// Structural data only. The display name comes from each folder's marker
+// .txt file (resolved via /stations/manifest.json); description and clue
+// live in `public/stations/<folder>/*.txt` and are loaded at runtime.
+// Images live in `public/stations/<folder>/images/` as `image-1.jpg`,
+// `image-2.jpg`, …
 //
 // Audio: each station's audio file lives in `public/audio/` and its filename
 // must start with the station number (with an optional leading zero), e.g.
@@ -108,8 +110,8 @@ const STATIONS = [
 const MAX_IMAGES_PER_STATION = 20;
 const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
 
-// Fallback title used before the .txt files finish loading, so list rows
-// never flash blank.
+// Fallback title used before the stations manifest finishes loading, so
+// list rows never flash blank.
 const fallbackTitle = (station) =>
   `Station ${String(station.id).padStart(2, '0')}`;
 
@@ -140,6 +142,27 @@ const fetchAudioManifest = async () => {
     return Array.isArray(data?.files) ? data.files : [];
   } catch {
     return [];
+  }
+};
+
+// Load /stations/manifest.json — produced at build time by
+// scripts/generate-stations-manifest.js — and return a folder→name map
+// derived from each station folder's "marker" .txt filename. Empty map on
+// any failure; the UI then falls back to "Station 0N" placeholders.
+const fetchStationsManifest = async () => {
+  try {
+    const base = process.env.PUBLIC_URL || '';
+    const res = await fetch(`${base}/stations/manifest.json`);
+    if (!res.ok) return {};
+    const data = await res.json();
+    if (!Array.isArray(data?.stations)) return {};
+    return Object.fromEntries(
+      data.stations
+        .filter((s) => s && typeof s.folder === 'string')
+        .map((s) => [s.folder, typeof s.name === 'string' ? s.name : ''])
+    );
+  } catch {
+    return {};
   }
 };
 
@@ -1791,6 +1814,9 @@ export default function OfflineApp() {
   // time manifest. Used to resolve each station's audioUrl by matching its
   // number prefix.
   const [audioFiles, setAudioFiles] = useState([]);
+  // Folder→name map loaded once from the stations manifest. The name is
+  // derived from each station folder's marker .txt filename.
+  const [stationNames, setStationNames] = useState({});
 
   // Load each station's .txt files once on mount.
   useEffect(() => {
@@ -1798,13 +1824,12 @@ export default function OfflineApp() {
     const load = async () => {
       const entries = await Promise.all(
         STATIONS.map(async (s) => {
-          const [title, description, descriptionLong, clue] = await Promise.all([
-            fetchStationText(s.folder, 'title.txt'),
+          const [description, descriptionLong, clue] = await Promise.all([
             fetchStationText(s.folder, 'description.txt'),
             fetchStationText(s.folder, 'description-long.txt'),
             fetchStationText(s.folder, 'clue.txt'),
           ]);
-          return [s.id, { title, description, descriptionLong, clue }];
+          return [s.id, { description, descriptionLong, clue }];
         })
       );
       if (!cancelled) {
@@ -1825,6 +1850,16 @@ export default function OfflineApp() {
     return () => { cancelled = true; };
   }, []);
 
+  // Load the stations manifest once on mount so we can resolve each
+  // station's display name from its marker .txt filename.
+  useEffect(() => {
+    let cancelled = false;
+    fetchStationsManifest().then((map) => {
+      if (!cancelled) setStationNames(map);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   // Merge static config + loaded content into the "enriched" station list.
   const stations = useMemo(
     () =>
@@ -1832,14 +1867,14 @@ export default function OfflineApp() {
         const c = stationContent[s.id] || {};
         return {
           ...s,
-          name: c.title || fallbackTitle(s),
+          name: stationNames[s.folder] || fallbackTitle(s),
           description: c.description || '',
           descriptionLong: c.descriptionLong || '',
           clue: c.clue || '',
           audioUrl: audioUrlForStation(s.id, audioFiles),
         };
       }),
-    [stationContent, audioFiles]
+    [stationContent, audioFiles, stationNames]
   );
 
   // Persist found ids (skip the hydration pass).
