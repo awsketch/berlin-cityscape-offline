@@ -383,13 +383,27 @@ const AudioPlayer = ({ audioUrl, treasureName }) => {
     audio.currentTime = Math.max(0, Math.min(dur, audio.currentTime + delta));
   };
 
-  // Click anywhere on the progress bar to seek to that point.
-  const handleSeek = (e) => {
+  // Tap or drag the progress bar to seek. Pointer events cover both mouse
+  // and touch with a single set of handlers; setPointerCapture means we
+  // keep receiving moves even if the finger drifts off the bar vertically.
+  const seekFromClientX = (clientX, rect) => {
     const audio = audioRef.current;
     if (!audio || !duration) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     audio.currentTime = pct * duration;
+  };
+
+  const handlePointerDown = (e) => {
+    if (!duration) return;
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
+    seekFromClientX(e.clientX, e.currentTarget.getBoundingClientRect());
+  };
+
+  const handlePointerMove = (e) => {
+    // Only treat moves as a drag while the pointer is captured (i.e., the
+    // user is actively holding down). Avoids hover-as-seek on desktop.
+    if (!e.currentTarget.hasPointerCapture || !e.currentTarget.hasPointerCapture(e.pointerId)) return;
+    seekFromClientX(e.clientX, e.currentTarget.getBoundingClientRect());
   };
 
   const formatTime = (sec) => {
@@ -518,10 +532,13 @@ const AudioPlayer = ({ audioUrl, treasureName }) => {
 
       {/* Progress bar — minimal black line. Unplayed portion at 50% opacity,
           played portion at full opacity, with a small filled circle marking
-          the playhead. Click anywhere on the bar to seek. */}
-      <div style={{ marginTop: '20px', padding: '0 6px' }}>
+          the playhead. The visible line is thin, but the wrapper is 44px
+          tall so it gives a comfortable thumb-sized hit area on phones. Tap
+          or drag anywhere in that band to seek. */}
+      <div style={{ marginTop: '12px', padding: '0 6px' }}>
         <div
-          onClick={handleSeek}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
           role="slider"
           aria-label="Seek"
           aria-valuemin={0}
@@ -529,8 +546,13 @@ const AudioPlayer = ({ audioUrl, treasureName }) => {
           aria-valuenow={Math.floor(currentTime)}
           style={{
             position: 'relative',
-            height: '14px',
+            height: '44px',
             cursor: duration > 0 ? 'pointer' : 'default',
+            // Keep the page from scrolling while dragging the playhead.
+            touchAction: 'none',
+            // Subtle but useful: stop iOS from highlighting the bar grey on tap.
+            WebkitTapHighlightColor: 'transparent',
+            userSelect: 'none',
           }}
         >
           {/* Unplayed line (50% opacity, full width) */}
@@ -554,7 +576,7 @@ const AudioPlayer = ({ audioUrl, treasureName }) => {
             transform: 'translateY(-50%)',
             background: COLORS.onSurface,
           }} />
-          {/* Playhead — small filled circle */}
+          {/* Playhead — small filled circle, visually unchanged. */}
           <span aria-hidden="true" style={{
             position: 'absolute',
             left: `${progressPct}%`,
@@ -1254,6 +1276,12 @@ const DetailScreen = ({ station, isFound, images, imagesLoaded, onBack, onOpenSc
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <Header
         leftSlot={
+          // The whole "back affordance" mirrors the home-screen left slot
+          // (3-circle logo + "Berlin is for Seekers"), with a small black
+          // sideways triangle prepended to communicate "back". Tapping
+          // anywhere on the group returns to the index — so the brand mark
+          // doubles as the way home, and the top bar still reads as the
+          // home-screen top bar.
           <button
             type="button"
             onClick={onBack}
@@ -1261,38 +1289,43 @@ const DetailScreen = ({ station, isFound, images, imagesLoaded, onBack, onOpenSc
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '10px',
-              padding: '6px 10px',
-              background: COLORS.surfaceHighest,
+              gap: '14px',
+              padding: 0,
+              background: 'transparent',
               border: 'none',
               cursor: 'pointer',
               color: COLORS.onSurface,
               font: 'inherit',
+              minWidth: 0,
             }}
           >
-            {/* Left-pointing triangle */}
+            {/* Left-pointing black triangle — the only "back" affordance. */}
             <span aria-hidden="true" style={{
               display: 'inline-block',
               width: 0,
               height: 0,
-              borderTop: '5px solid transparent',
-              borderBottom: '5px solid transparent',
-              borderRight: `6px solid ${COLORS.onSurface}`,
+              borderTop: '7px solid transparent',
+              borderBottom: '7px solid transparent',
+              borderRight: `9px solid ${COLORS.onSurface}`,
+              flexShrink: 0,
             }} />
-            <Eyebrow spacing="0.18em">Index</Eyebrow>
+            {/* 3-circle logo — matches home header. */}
+            <CircleTrio colors={LOGO_COLOR_ORDER} size={14} gap={6} />
+            <h1 style={{
+              margin: 0,
+              fontFamily: "'Space Grotesk', sans-serif",
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+              fontSize: '18px',
+              color: COLORS.primary,
+              textTransform: 'uppercase',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}>
+              Berlin is for Seekers
+            </h1>
           </button>
-        }
-        rightSlot={
-          <span style={{
-            fontFamily: "'Space Grotesk', sans-serif",
-            fontWeight: 700,
-            fontSize: '10px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.22em',
-            color: style.color,
-          }}>
-            {`Station ${String(station.id).padStart(2, '0')}`}
-          </span>
         }
       />
 
@@ -1303,11 +1336,6 @@ const DetailScreen = ({ station, isFound, images, imagesLoaded, onBack, onOpenSc
         width: '100%',
         margin: '0 auto',
       }}>
-        {/* Station eyebrow */}
-        <Eyebrow color={style.color} spacing="0.22em" style={{ marginBottom: '8px' }}>
-          {`Station ${String(station.id).padStart(2, '0')}`}
-        </Eyebrow>
-
         {/* Title — replaced by station logo image
             (public/stations/<folder>/logo/logo.png).
             If the file isn't present, falls back to the text title styled the
