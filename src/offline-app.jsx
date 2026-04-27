@@ -1795,6 +1795,79 @@ const BootSplash = ({ onDone }) => {
   );
 };
 
+// --- Unlock splash ---
+// Full-screen white overlay shown the moment a station's QR is accepted.
+// Three circles in the *station's own colour order* (so the moment is keyed to
+// the station that just unlocked) burst from the centre, hold briefly, then
+// the whole overlay fades to reveal the unlocked DetailScreen rendered
+// underneath. Total runtime: 1.6s — short enough to feel like part of the tap,
+// long enough to register as a celebratory beat.
+//
+// Implementation mirrors BootSplash:
+// - Single fixed-position overlay at very high z-index.
+// - One @keyframe for the circles (no CSS variables — they can silently fail
+//   in some build pipelines), one for the bg fade.
+// - Timer in a ref so React StrictMode double-mounts can't reset the countdown.
+const UnlockSplash = ({ stationId, onDone }) => {
+  const onDoneRef = useRef(onDone);
+  useEffect(() => { onDoneRef.current = onDone; });
+  useEffect(() => {
+    const t = setTimeout(() => onDoneRef.current && onDoneRef.current(), 1600);
+    return () => clearTimeout(t);
+  }, []);
+
+  const colors = STATION_COLOR_ORDER[stationId] || LOGO_COLOR_ORDER;
+
+  return (
+    <div
+      role="presentation"
+      aria-hidden="true"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: COLORS.surfaceLowest, // pure white
+        zIndex: 10001,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        animation: 'unlockSplashBgFade 1.6s ease-in both',
+        pointerEvents: 'none',
+      }}
+    >
+      <style>{`
+        @keyframes unlockSplashBgFade {
+          0%, 65% { opacity: 1; }
+          100%    { opacity: 0; }
+        }
+        @keyframes unlockSplashCircle {
+          0%   { transform: scale(0);    opacity: 0; }
+          18%  { transform: scale(1.18); opacity: 1; }
+          32%  { transform: scale(1);    opacity: 1; }
+          65%  { transform: scale(1);    opacity: 1; }
+          100% { transform: scale(0.92); opacity: 0; }
+        }
+        .unlock-splash-circle {
+          width: 72px;
+          height: 72px;
+          border-radius: 50%;
+          transform-origin: 50% 50%;
+          will-change: transform, opacity;
+          animation: unlockSplashCircle 1.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+      `}</style>
+      <div style={{ display: 'flex', gap: '28px', alignItems: 'center' }}>
+        {colors.map((c, i) => (
+          <div
+            key={i}
+            className="unlock-splash-circle"
+            style={{ backgroundColor: c }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // --- Main App Component ---
 export default function OfflineApp() {
   const [foundIds, setFoundIds] = useState(loadInitialFound);
@@ -1803,6 +1876,7 @@ export default function OfflineApp() {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanError, setScanError] = useState(null);
   const [justUnlockedId, setJustUnlockedId] = useState(null);
+  const [unlockingId, setUnlockingId] = useState(null); // drives UnlockSplash overlay
   const [bootDone, setBootDone] = useState(false); // splash overlay until 2.5s
 
   // Content loaded from public/stations/<folder>/*.txt — keyed by id.
@@ -1948,10 +2022,16 @@ export default function OfflineApp() {
       return;
     }
     // Record found + navigate to the matched station's page (which will
-    // render in its unlocked state automatically).
+    // render in its unlocked state automatically). The DetailScreen mounts
+    // immediately underneath the UnlockSplash overlay, so by the time the
+    // splash fades out the unlocked page is already there.
+    // `justUnlockedId` (the small confirmation toast) is intentionally NOT
+    // set here — the UnlockSplash itself is the celebratory beat. The toast
+    // is set when the splash finishes, so it gets its full 4.5s of visibility
+    // on the now-revealed page rather than being hidden behind the overlay.
     setFoundIds((prev) => (prev.includes(matched.id) ? prev : [...prev, matched.id]));
-    setJustUnlockedId(matched.id);
     setActiveId(matched.id);
+    setUnlockingId(matched.id);
     setScannerOpen(false);
     setScanError(null);
   }, []);
@@ -1992,6 +2072,18 @@ export default function OfflineApp() {
           onClose={closeScanner}
           onDecoded={handleDecoded}
           error={scanError}
+        />
+      )}
+
+      {unlockingId != null && (
+        <UnlockSplash
+          stationId={unlockingId}
+          onDone={() => {
+            // Hand the celebratory baton from full-screen splash to the
+            // smaller corner toast, now visible on the unlocked page.
+            setJustUnlockedId(unlockingId);
+            setUnlockingId(null);
+          }}
         />
       )}
 
