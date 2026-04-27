@@ -1798,21 +1798,37 @@ const BootSplash = ({ onDone }) => {
 // --- Unlock splash ---
 // Full-screen white overlay shown the moment a station's QR is accepted.
 // Three circles in the *station's own colour order* (so the moment is keyed to
-// the station that just unlocked) burst from the centre, hold briefly, then
-// the whole overlay fades to reveal the unlocked DetailScreen rendered
-// underneath. Total runtime: 1.6s — short enough to feel like part of the tap,
-// long enough to register as a celebratory beat.
+// the station that just unlocked) perform a four-beat celebration, then the
+// overlay fades to reveal the unlocked DetailScreen rendered underneath.
+// Total runtime: 3.4s.
 //
-// Implementation mirrors BootSplash:
-// - Single fixed-position overlay at very high z-index.
-// - One @keyframe for the circles (no CSS variables — they can silently fail
-//   in some build pipelines), one for the bg fade.
-// - Timer in a ref so React StrictMode double-mounts can't reset the countdown.
+// Choreography:
+//   1. DROP IN  (0.00s → 0.81s) — circles fall from above the viewport with
+//      springy easing and a squash-and-stretch landing. Staggered 80ms each
+//      (left, middle, right) so they land in a quick patter.
+//   2. WAVE HOP (0.85s → 1.65s) — Mexican wave: each circle hops ~50px up and
+//      back down in turn (left → middle → right), squashing on landing. Says
+//      "we're alive!"
+//   3. PULSE    (1.75s → 2.45s) — all three pulse together: 1.0 → 1.30 → 0.92
+//      → 1.0. Kind of a heartbeat / fanfare beat.
+//   4. EXIT     (2.70s → 3.40s) — circles drift up and shrink as they fade,
+//      and the white background fades in parallel, revealing the unlocked
+//      page underneath.
+//
+// Implementation notes:
+// - Each circle composes four sequential @keyframe animations (drop, hop,
+//   pulse, exit) on a single element. Sequential animations with `both`
+//   fill-mode hand off cleanly because each phase's 0% matches the previous
+//   phase's 100% (all return to translate(0,0) scale(1) before exit).
+// - No CSS variables inside @keyframes — they can silently fail in some
+//   build pipelines, so per-circle differences are baked into class-specific
+//   `animation-delay` values rather than var()s.
+// - Timer in a ref so React StrictMode double-mounts can't reset it.
 const UnlockSplash = ({ stationId, onDone }) => {
   const onDoneRef = useRef(onDone);
   useEffect(() => { onDoneRef.current = onDone; });
   useEffect(() => {
-    const t = setTimeout(() => onDoneRef.current && onDoneRef.current(), 1600);
+    const t = setTimeout(() => onDoneRef.current && onDoneRef.current(), 3400);
     return () => clearTimeout(t);
   }, []);
 
@@ -1830,39 +1846,97 @@ const UnlockSplash = ({ stationId, onDone }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        animation: 'unlockSplashBgFade 1.6s ease-in both',
+        animation: 'unlockSplashBgFade 3.4s ease-in both',
         pointerEvents: 'none',
       }}
     >
       <style>{`
+        /* Background stays opaque through the celebration, then fades during
+           the exit phase (2.70s → 3.40s = 79% → 100% of 3.4s). */
         @keyframes unlockSplashBgFade {
-          0%, 65% { opacity: 1; }
+          0%, 79% { opacity: 1; }
           100%    { opacity: 0; }
         }
-        @keyframes unlockSplashCircle {
-          0%   { transform: scale(0);    opacity: 0; }
-          18%  { transform: scale(1.18); opacity: 1; }
-          32%  { transform: scale(1);    opacity: 1; }
-          65%  { transform: scale(1);    opacity: 1; }
-          100% { transform: scale(0.92); opacity: 0; }
+
+        /* 1) DROP IN — fall from above with overshoot and squash landing. */
+        @keyframes unlockDrop {
+          0%   { transform: translate3d(0, -120vh, 0) scale(1, 1);          opacity: 1; }
+          70%  { transform: translate3d(0, 14px, 0)   scale(1.18, 0.82);    opacity: 1; }
+          85%  { transform: translate3d(0, -6px, 0)   scale(0.94, 1.08);    opacity: 1; }
+          100% { transform: translate3d(0, 0, 0)      scale(1, 1);          opacity: 1; }
         }
+
+        /* 2) WAVE HOP — up 50px, back down with a squash on landing. */
+        @keyframes unlockHop {
+          0%   { transform: translate3d(0, 0, 0)    scale(1, 1); }
+          45%  { transform: translate3d(0, -50px, 0) scale(0.96, 1.06); }
+          75%  { transform: translate3d(0, 0, 0)    scale(1.20, 0.82); }
+          90%  { transform: translate3d(0, 0, 0)    scale(0.96, 1.04); }
+          100% { transform: translate3d(0, 0, 0)    scale(1, 1); }
+        }
+
+        /* 3) PULSE — synchronised heartbeat. */
+        @keyframes unlockPulse {
+          0%   { transform: scale(1); }
+          40%  { transform: scale(1.30); }
+          70%  { transform: scale(0.92); }
+          100% { transform: scale(1); }
+        }
+
+        /* 4) EXIT — drift up, shrink, fade. */
+        @keyframes unlockExit {
+          0%   { transform: translate3d(0, 0, 0)    scale(1);    opacity: 1; }
+          100% { transform: translate3d(0, -36px, 0) scale(0.85); opacity: 0; }
+        }
+
         .unlock-splash-circle {
           width: 72px;
           height: 72px;
           border-radius: 50%;
           transform-origin: 50% 50%;
           will-change: transform, opacity;
-          animation: unlockSplashCircle 1.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        /* Each circle composes the four phases. Drop/hop are staggered per
+           position for the patter and the wave; pulse and exit fire in unison.
+           Easings: bouncy back-out for drop & hop landings, smooth in-out for
+           pulse, ease-in for the exit drift. */
+        .unlock-splash-circle--left {
+          animation:
+            unlockDrop  0.65s cubic-bezier(0.34, 1.56, 0.64, 1) 0.00s both,
+            unlockHop   0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 0.85s both,
+            unlockPulse 0.70s cubic-bezier(0.45, 0, 0.55, 1)    1.75s both,
+            unlockExit  0.70s cubic-bezier(0.55, 0, 0.85, 0.4)  2.70s both;
+        }
+        .unlock-splash-circle--mid {
+          animation:
+            unlockDrop  0.65s cubic-bezier(0.34, 1.56, 0.64, 1) 0.08s both,
+            unlockHop   0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 1.00s both,
+            unlockPulse 0.70s cubic-bezier(0.45, 0, 0.55, 1)    1.75s both,
+            unlockExit  0.70s cubic-bezier(0.55, 0, 0.85, 0.4)  2.70s both;
+        }
+        .unlock-splash-circle--right {
+          animation:
+            unlockDrop  0.65s cubic-bezier(0.34, 1.56, 0.64, 1) 0.16s both,
+            unlockHop   0.55s cubic-bezier(0.34, 1.56, 0.64, 1) 1.15s both,
+            unlockPulse 0.70s cubic-bezier(0.45, 0, 0.55, 1)    1.75s both,
+            unlockExit  0.70s cubic-bezier(0.55, 0, 0.85, 0.4)  2.70s both;
         }
       `}</style>
       <div style={{ display: 'flex', gap: '28px', alignItems: 'center' }}>
-        {colors.map((c, i) => (
-          <div
-            key={i}
-            className="unlock-splash-circle"
-            style={{ backgroundColor: c }}
-          />
-        ))}
+        {colors.map((c, i) => {
+          const positionClass =
+            i === 0 ? 'unlock-splash-circle--left'
+            : i === 1 ? 'unlock-splash-circle--mid'
+            : 'unlock-splash-circle--right';
+          return (
+            <div
+              key={i}
+              className={`unlock-splash-circle ${positionClass}`}
+              style={{ backgroundColor: c }}
+            />
+          );
+        })}
       </div>
     </div>
   );
