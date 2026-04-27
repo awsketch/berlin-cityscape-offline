@@ -10,6 +10,12 @@
     "react-scripts": "5.0.1"
   },
   "scripts": {
+    "audio-manifest": "node scripts/generate-audio-manifest.js",
+    "stations-manifest": "node scripts/generate-stations-manifest.js",
+    "manifests": "npm run audio-manifest && npm run stations-manifest",
+    "prestart": "npm run manifests",
+    "predev": "npm run manifests",
+    "prebuild": "npm run manifests",
     "dev": "react-scripts start",
     "build": "react-scripts build",
     "start": "react-scripts start",

@@ -1,0 +1,29 @@
+{
+  "generatedAt": "2026-04-27T15:33:34.273Z",
+  "stations": [
+    {
+      "folder": "station-1",
+      "name": "Hurra! Emancipation"
+    },
+    {
+      "folder": "station-2",
+      "name": "Klaus ist tot!"
+    },
+    {
+      "folder": "station-3",
+      "name": "Long Live Proletarian Internationalism!"
+    },
+    {
+      "folder": "station-4",
+      "name": "Wir Wollen Westler Sein"
+    },
+    {
+      "folder": "station-5",
+      "name": "Moloch"
+    },
+    {
+      "folder": "station-6",
+      "name": "Theatre used to be better"
+    }
+  ]
+}
