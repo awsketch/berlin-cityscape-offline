@@ -17,15 +17,6 @@ const COLORS = {
   found: '#1a1c1c',          // Stark black for "found" state
 };
 
-// Categories still drive the eyebrow text colour and label. The `shape` field
-// is gone — every station now uses the same 3-circle marker form, with the
-// per-station identity coming from STATION_COLOR_ORDER below instead of from
-// a unique shape per category.
-const CATEGORY_STYLE = {
-  historic: { color: COLORS.primary,   label: 'Historic Site' },
-  modern:   { color: COLORS.secondary, label: 'Modern Architecture' },
-  secret:   { color: COLORS.tertiary,  label: 'Secret Spot' },
-};
 
 // --- Per-station marker colour order ---
 // Every station's marker is the same form: three small circles in a row.
@@ -72,38 +63,32 @@ const STATIONS = [
   {
     id: 1,
     folder: 'station-1',
-    category: 'historic',
     unlockToken: 'ns-jt9k4m2zwq',
   },
   {
     id: 2,
     folder: 'station-2',
-    category: 'historic',
     unlockToken: 'hh-r8p3v7nxbf',
   },
   {
     id: 3,
     folder: 'station-3',
-    category: 'secret',
     unlockToken: 'mb-cwm2x5h7tq',
   },
   {
     id: 4,
     folder: 'station-4',
-    category: 'modern',
     unlockToken: 'kw-y4n6kbsd9p',
   },
   {
     id: 5,
     folder: 'station-5',
-    category: 'modern',
     unlockToken: 'vb-z3q8rhwm5c',
   },
   {
     id: 6,
     folder: 'station-6',
-    category: 'secret',
-    unlockToken: 's6-a7k2m9wpqx4b',
+    unlockToken: 's6-p9w1mx6jqh4y',
   },
 ];
 
@@ -1318,8 +1303,6 @@ const HowToScreen = ({ onBack }) => {
 
 // --- Detail Screen (locked or unlocked state for a single station) ---
 const DetailScreen = ({ station, isFound, images, imagesLoaded, onBack, onOpenScanner }) => {
-  const style = CATEGORY_STYLE[station.category] || CATEGORY_STYLE.historic;
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
       <Header
@@ -1414,11 +1397,11 @@ const DetailScreen = ({ station, isFound, images, imagesLoaded, onBack, onOpenSc
           />
         </h2>
 
-        {/* Category color bar underline */}
+        {/* Color bar underline */}
         <div style={{
           width: '64px',
           height: '6px',
-          backgroundColor: style.color,
+          backgroundColor: COLORS.primary,
           margin: '14px 0 18px 0',
         }} />
 
@@ -1540,7 +1523,7 @@ const DetailScreen = ({ station, isFound, images, imagesLoaded, onBack, onOpenSc
             <div style={{
               backgroundColor: COLORS.surfaceLow,
               padding: '18px 18px 18px 18px',
-              borderLeft: `6px solid ${style.color}`,
+              borderLeft: `6px solid ${COLORS.primary}`,
               marginBottom: '22px',
             }}>
               <Eyebrow color={COLORS.onSurface} spacing="0.2em" style={{ marginBottom: '8px' }}>
@@ -1657,7 +1640,6 @@ const DetailScreen = ({ station, isFound, images, imagesLoaded, onBack, onOpenSc
 // --- Just-unlocked Toast (brief confirmation when a QR is accepted) ---
 const UnlockToast = ({ station }) => {
   if (!station) return null;
-  const style = CATEGORY_STYLE[station.category] || CATEGORY_STYLE.historic;
   return (
     <div
       role="status"
@@ -1669,14 +1651,14 @@ const UnlockToast = ({ station }) => {
         transform: 'translateX(-50%)',
         backgroundColor: COLORS.onSurface,
         color: COLORS.surfaceLowest,
-        borderLeft: `12px solid ${style.color}`,
+        borderLeft: `12px solid ${COLORS.primary}`,
         padding: '14px 20px',
         maxWidth: 'min(420px, calc(100vw - 32px))',
         zIndex: 2000,
         boxShadow: '0 6px 0 rgba(26,28,28,0.12)',
       }}
     >
-      <Eyebrow color={style.color} style={{ marginBottom: '4px' }}>
+      <Eyebrow color={COLORS.primary} style={{ marginBottom: '4px' }}>
         ✓ Unlocked
       </Eyebrow>
       <div style={{
