@@ -88,7 +88,7 @@ const STATIONS = [
   {
     id: 6,
     folder: 'station-6',
-    unlockToken: 's6-p9w1mx6jqh4y',
+    unlockToken: 'mo-p3f1ma',
   },
 ];
 
